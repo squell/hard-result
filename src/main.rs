@@ -56,6 +56,7 @@ impl<T, E> HardResult<T, E> {
         let mask_0 = self.tag ^ S_FST;
         let mask_1 = self.tag ^ S_SND;
 
+        #[allow(clippy::transmutes_expressible_as_ptr_casts)]
         unsafe {
             let address_0 =
                 transmute::<BodyFunction<T, E, U, D, F>, InternalRepresentation>(then_do) & mask_1;
