@@ -34,9 +34,9 @@ impl<T, E> HardResult<T, E> {
         }
     }
 
-    fn map_or_else<U, D: FnOnce(E) -> U, F: FnOnce(T) -> U>(self, g: D, f: F) -> U {
+    fn if_then_else<U, D: FnOnce(E) -> U, F: FnOnce(T) -> U>(&mut self, g: D, f: F) -> U {
         unsafe fn then_do<T, E, U>(
-            mut this: HardResult<T, E>,
+            this: &mut HardResult<T, E>,
             _g: impl FnOnce(E) -> U,
             f: impl FnOnce(T) -> U,
         ) -> U {
@@ -44,14 +44,14 @@ impl<T, E> HardResult<T, E> {
         }
 
         unsafe fn else_do<T, E, U>(
-            mut this: HardResult<T, E>,
+            this: &mut HardResult<T, E>,
             g: impl FnOnce(E) -> U,
             _f: impl FnOnce(T) -> U,
         ) -> U {
             g(ManuallyDrop::into_inner(this.data.take().unwrap().snd))
         }
 
-        type BodyFunction<T, E, U, D, F> = unsafe fn(HardResult<T, E>, D, F) -> U;
+        type BodyFunction<T, E, U, D, F> = unsafe fn(&'_ mut HardResult<T, E>, D, F) -> U;
 
         let mask_0 = self.tag ^ S_FST;
         let mask_1 = self.tag ^ S_SND;
@@ -67,16 +67,22 @@ impl<T, E> HardResult<T, E> {
             )
         }
     }
+
+    pub fn map_or_else<U, D: FnOnce(E) -> U, F: FnOnce(T) -> U>(mut self, g: D, f: F) -> U {
+        self.if_then_else(g, f)
+    }
 }
 
 impl<T, E> Drop for HardResult<T, E> {
     fn drop(&mut self) {
-        //self.map_or_else(|_x| { }, |_x| { })
+        if self.data.is_some() {
+            self.if_then_else(|_x| {}, |_x| {})
+        }
     }
 }
 
 fn main() {
-    let foo = HardResult::<&str, i32>::new("erawr");
+    let foo = HardResult::<&'static str, i32>::new("erawr");
 
     foo.map_or_else(
         |x| {
@@ -85,5 +91,5 @@ fn main() {
         |x| {
             println!("OK value {x}");
         },
-    )
+    );
 }
