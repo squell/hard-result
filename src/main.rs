@@ -38,13 +38,16 @@ impl<T, E> HardResult<T, E> {
         }
     }
 
-    unsafe fn inner(&mut self) -> Union<T, E> {
-        replace(&mut self.data, MaybeUninit::uninit()).assume_init()
+    unsafe fn inner(mut self) -> Union<T, E> {
+        let result = replace(&mut self.data, MaybeUninit::uninit()).assume_init();
+        forget(self);
+
+        result
     }
 
-    fn if_then_else<U, D: FnOnce(E) -> U, F: FnOnce(T) -> U>(&mut self, g: D, f: F) -> U {
+    pub fn map_or_else<U, D: FnOnce(E) -> U, F: FnOnce(T) -> U>(self, g: D, f: F) -> U {
         unsafe fn then_do<T, E, U>(
-            this: &mut HardResult<T, E>,
+            this: HardResult<T, E>,
             _g: impl FnOnce(E) -> U,
             f: impl FnOnce(T) -> U,
         ) -> U {
@@ -52,14 +55,14 @@ impl<T, E> HardResult<T, E> {
         }
 
         unsafe fn else_do<T, E, U>(
-            this: &mut HardResult<T, E>,
+            this: HardResult<T, E>,
             g: impl FnOnce(E) -> U,
             _f: impl FnOnce(T) -> U,
         ) -> U {
             g(ManuallyDrop::into_inner(this.inner().snd))
         }
 
-        type BodyFunction<T, E, U, D, F> = unsafe fn(&'_ mut HardResult<T, E>, D, F) -> U;
+        type BodyFunction<T, E, U, D, F> = unsafe fn(HardResult<T, E>, D, F) -> U;
 
         let mask_0 = self.tag ^ S_FST;
         let mask_1 = self.tag ^ S_SND;
@@ -77,13 +80,6 @@ impl<T, E> HardResult<T, E> {
         }
     }
 
-    pub fn map_or_else<U, D: FnOnce(E) -> U, F: FnOnce(T) -> U>(mut self, g: D, f: F) -> U {
-        let result = self.if_then_else(g, f);
-        forget(self);
-
-        result
-    }
-
     pub fn unwrap(self) -> T {
         self.map_or_else(|_| panic!("unwrap on HardResult"), |x| x)
     }
@@ -92,18 +88,22 @@ impl<T, E> HardResult<T, E> {
         self.map_or_else(|x| x, |_| panic!("unwrap on HardResult"))
     }
 
-    pub unsafe fn unwrap_unchecked(mut self) -> T {
+    pub unsafe fn unwrap_unchecked(self) -> T {
         ManuallyDrop::into_inner(self.inner().fst)
     }
 
-    pub unsafe fn unwrap_err_unchecked(mut self) -> E {
+    pub unsafe fn unwrap_err_unchecked(self) -> E {
         ManuallyDrop::into_inner(self.inner().snd)
     }
 }
 
 impl<T, E> Drop for HardResult<T, E> {
     fn drop(&mut self) {
-        self.if_then_else(|_x| {}, |_x| {})
+        HardResult {
+            tag: self.tag,
+            data: replace(&mut self.data, MaybeUninit::uninit()),
+        }
+        .map_or_else(|_| {}, |_| {})
     }
 }
 
