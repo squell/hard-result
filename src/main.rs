@@ -12,6 +12,10 @@ struct HardResult<A, B> {
     data: Option<Union<A, B>>,
 }
 
+struct HardOption<A>(HardResult<A, ()>);
+
+struct HardBool(HardResult<(), ()>);
+
 const S_FST: InternalRepresentation = 0xAAAAAAAAAAAAAAAA;
 const S_SND: InternalRepresentation = 0x5555555555555555;
 
@@ -71,6 +75,22 @@ impl<T, E> HardResult<T, E> {
 
     pub fn map_or_else<U, D: FnOnce(E) -> U, F: FnOnce(T) -> U>(mut self, g: D, f: F) -> U {
         self.if_then_else(g, f)
+    }
+
+    pub fn unwrap(self) -> T {
+        self.map_or_else(|_| panic!("unwrap on HardResult"), |x| x)
+    }
+
+    pub fn unwrap_err(self) -> E {
+        self.map_or_else(|x| x, |_| panic!("unwrap on HardResult"))
+    }
+
+    pub unsafe fn unwrap_unchecked(mut self) -> T {
+        ManuallyDrop::into_inner(self.data.take().unwrap_unchecked().fst)
+    }
+
+    pub unsafe fn unwrap_err_unchecked(mut self) -> E {
+        ManuallyDrop::into_inner(self.data.take().unwrap_unchecked().snd)
     }
 }
 
