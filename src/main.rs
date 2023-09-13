@@ -41,7 +41,8 @@ fn main() {
 
     obj.ok()
         .is_some()
-        .r#if_else(|| println!("It is a some!"), || {});
+        .r#if(|| println!("It is a some!"))
+        .r#else(|| println!("It is none!"));
 
     let bar = HardResult::<Dummy, ()>::new(Dummy);
     bar.unwrap();

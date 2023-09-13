@@ -17,8 +17,12 @@ impl HardBool {
         self.map(|()| value)
     }
 
-    pub fn if_else(self, then_do: impl FnOnce(), else_do: impl FnOnce()) {
+    pub fn if_else<U>(self, then_do: impl FnOnce() -> U, else_do: impl FnOnce() -> U) -> U {
         self.map_or_else(|()| else_do(), |()| then_do())
+    }
+
+    pub fn r#if<U>(self, then_do: impl FnOnce() -> U) -> Else<U> {
+        Else(self.map(|()| then_do()))
     }
 
     #[cfg(feature = "loops")]
@@ -37,6 +41,14 @@ impl HardBool {
             },
             || (),
         );
+    }
+}
+
+pub struct Else<U>(HardOption<U>);
+
+impl<U> Else<U> {
+    pub fn r#else(self, f: impl FnOnce() -> U) -> U {
+        self.0.unwrap_or_else(|()| f())
     }
 }
 
