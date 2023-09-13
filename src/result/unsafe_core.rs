@@ -41,6 +41,27 @@ impl<T, E> HardResult<T, E> {
         result
     }
 
+    //NOTE: T and E are not dynamically sized, so a &T and &E have the same representation
+    pub fn as_ref(&self) -> HardResult<&T, &E> {
+        let ptr = self.data.as_ptr() as *const T;
+        HardResult {
+            tag: self.tag,
+            data: MaybeUninit::new(Union {
+                fst: ManuallyDrop::new(unsafe { &*ptr }),
+            }),
+        }
+    }
+
+    pub fn as_mut(&mut self) -> HardResult<&mut T, &mut E> {
+        let ptr = self.data.as_mut_ptr() as *mut T;
+        HardResult {
+            tag: self.tag,
+            data: MaybeUninit::new(Union {
+                fst: ManuallyDrop::new(unsafe { &mut *ptr }),
+            }),
+        }
+    }
+
     pub fn map_or_else<U, D: FnOnce(E) -> U, F: FnOnce(T) -> U>(self, g: D, f: F) -> U {
         unsafe fn then_do<T, E, U>(
             this: HardResult<T, E>,

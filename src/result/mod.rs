@@ -116,3 +116,16 @@ impl<T: Clone, E> HardResult<&T, E> {
         self.map(|x| x.clone())
     }
 }
+
+// By-reference methods
+impl<T: std::ops::Deref, E> HardResult<T, E> {
+    pub fn as_deref(&self) -> HardResult<&T::Target, &E> {
+	self.as_ref().map(|t| t.deref())
+    }
+}
+
+impl<T: std::ops::DerefMut, E> HardResult<T, E> {
+    pub fn as_deref_mut(&mut self) -> HardResult<&mut T::Target, &mut E> {
+	self.as_mut().map(|t| t.deref_mut())
+    }
+}

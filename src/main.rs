@@ -10,7 +10,8 @@ impl Drop for Dummy {
 }
 
 fn main() {
-    let obj = HardResult::<&'static str, i32>::new("erawr");
+    let mut obj = HardResult::<&'static str, i32>::new("erawr");
+    *obj.as_mut().unwrap() = "a new string";
 
     obj.map_or_else(
         |x| {
