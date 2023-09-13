@@ -17,7 +17,23 @@ impl HardBool {
         self.map(|()| value)
     }
 
-    pub fn r#if(self, then_do: impl FnOnce(), else_do: impl FnOnce()) {
+    pub fn r#if_else(self, then_do: impl FnOnce(), else_do: impl FnOnce()) {
         self.map_or_else(|()| else_do(), |()| then_do())
+    }
+
+    fn repeat(mut test: impl FnMut() -> Self) {
+        test().if_else(|| Self::repeat(test), || ())
+    }
+
+    pub fn r#while(mut test: impl FnMut() -> Self, mut body: impl FnMut()) {
+        test().if_else(
+            || {
+                Self::repeat(|| {
+                    body();
+                    test()
+                })
+            },
+            || (),
+        );
     }
 }

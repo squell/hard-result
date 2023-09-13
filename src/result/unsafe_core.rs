@@ -42,7 +42,7 @@ impl<T, E> HardResult<T, E> {
     }
 
     //NOTE: T and E are not dynamically sized, so a &T and &E have the same representation
-    pub const fn as_ref(&self) -> HardResult<&T, &E> {
+    pub fn as_ref(&self) -> HardResult<&T, &E> {
         let ptr = self.data.as_ptr() as *const T;
         HardResult {
             tag: self.tag,

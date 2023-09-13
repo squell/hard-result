@@ -1,5 +1,6 @@
 mod bool;
 mod option;
+mod traits;
 
 mod unsafe_core;
 
@@ -7,6 +8,9 @@ pub use unsafe_core::HardResult;
 
 pub type HardOption<A> = HardResult<A, ()>;
 pub type HardBool = HardOption<()>;
+
+pub const r#TRUE: HardBool = HardBool::r#true();
+pub const r#FALSE: HardBool = HardBool::r#false();
 
 // All the unwraps
 impl<T, E> HardResult<T, E> {

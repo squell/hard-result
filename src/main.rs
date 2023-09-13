@@ -1,5 +1,7 @@
+#![cfg_attr(feature = "try", feature(try_trait_v2))]
+
 mod result;
-pub use result::{HardBool, HardOption, HardResult};
+pub use result::{HardBool, HardOption, HardResult, FALSE, TRUE};
 
 struct Dummy;
 
@@ -7,6 +9,21 @@ impl Drop for Dummy {
     fn drop(&mut self) {
         println!("Mmm mmm");
     }
+}
+
+#[cfg(feature = "try")]
+fn pass(y: i32) -> HardOption<i32> {
+    fn test(x: i32) -> HardOption<i32> {
+        if x == 0 {
+            HardOption::r#none()
+        } else {
+            HardOption::r#some(x)
+        }
+    }
+
+    let x = test(y)?;
+
+    HardOption::r#some(x + 1)
 }
 
 fn main() {
@@ -22,8 +39,15 @@ fn main() {
         },
     );
 
-    obj.ok().is_some().r#if(|| println!("It is a some!"), || {});
+    obj.ok()
+        .is_some()
+        .r#if_else(|| println!("It is a some!"), || {});
 
     let bar = HardResult::<Dummy, ()>::new(Dummy);
     bar.unwrap();
+
+    #[cfg(feature = "try")]
+    println!("{}", pass(41).unwrap());
+
+    println!("{:?}", TRUE);
 }
