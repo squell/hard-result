@@ -137,12 +137,10 @@ impl<T: std::ops::DerefMut, E> HardResult<T, E> {
 // Boolean methods; these could be optimized by sending them to unsafe_core
 impl<T, E> HardResult<T, E> {
     pub fn is_ok(&self) -> HardBool {
-        self.as_ref()
-            .map_or_else(|_| HardBool::new_err(()), |_| HardBool::new(()))
+        self.truncate()
     }
 
     pub fn is_err(&self) -> HardBool {
-        self.as_ref()
-            .map_or_else(|_| HardBool::new(()), |_| HardBool::new_err(()))
+        !self.truncate()
     }
 }

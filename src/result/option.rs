@@ -3,11 +3,11 @@ use super::{HardBool, HardOption, HardResult};
 // Misc methods
 impl<T> HardOption<T> {
     pub const fn r#some(value: T) -> HardOption<T> {
-	Self::new(value)
+        Self::new(value)
     }
 
     pub const fn r#none() -> HardOption<T> {
-	Self::new_err(())
+        Self::new_err(())
     }
 
     pub fn filter(self, pred: impl FnOnce(&T) -> HardBool) -> HardOption<T> {

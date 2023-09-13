@@ -171,3 +171,12 @@ impl std::ops::Not for HardResult<(), ()> {
         }
     }
 }
+
+impl<T, E> HardResult<T, E> {
+    pub fn truncate(&self) -> HardResult<(), ()> {
+        HardResult {
+            tag: self.tag,
+            data: EMPTY_DATA,
+        }
+    }
+}
