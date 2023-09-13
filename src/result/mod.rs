@@ -1,8 +1,12 @@
+mod bool;
+mod option;
+
 mod unsafe_core;
 
 pub use unsafe_core::HardResult;
 
-pub struct HardOption<A>(HardResult<A, ()>);
+pub type HardOption<A> = HardResult<A, ()>;
+pub type HardBool = HardOption<()>;
 
 // All the unwraps
 impl<T, E> HardResult<T, E> {
@@ -75,20 +79,20 @@ impl<T, E> HardResult<T, E> {
 // Option interface
 impl<T, E> HardResult<T, E> {
     pub fn ok(self) -> HardOption<T> {
-        HardOption(self.map_err(|_| ()))
+        self.map_err(|_| ())
     }
 
     pub fn err(self) -> HardOption<E> {
-        HardOption(self.map_or_else(|e| HardResult::new(e), |_| HardResult::new_err(())))
+        self.map_or_else(|e| HardResult::new(e), |_| HardResult::new_err(()))
     }
 }
 
 impl<T, E> HardResult<HardOption<T>, E> {
     pub fn transpose(self) -> HardOption<HardResult<T, E>> {
-        HardOption(self.map_or_else(
+        self.map_or_else(
             |err| HardResult::new(HardResult::new_err(err)),
-            |value| value.0.map(|value| HardResult::new(value)),
-        ))
+            |value| value.map(|value| HardResult::new(value)),
+        )
     }
 }
 
@@ -120,12 +124,25 @@ impl<T: Clone, E> HardResult<&T, E> {
 // By-reference methods
 impl<T: std::ops::Deref, E> HardResult<T, E> {
     pub fn as_deref(&self) -> HardResult<&T::Target, &E> {
-	self.as_ref().map(|t| t.deref())
+        self.as_ref().map(|t| t.deref())
     }
 }
 
 impl<T: std::ops::DerefMut, E> HardResult<T, E> {
     pub fn as_deref_mut(&mut self) -> HardResult<&mut T::Target, &mut E> {
-	self.as_mut().map(|t| t.deref_mut())
+        self.as_mut().map(|t| t.deref_mut())
+    }
+}
+
+// Boolean methods; these could be optimized by sending them to unsafe_core
+impl<T, E> HardResult<T, E> {
+    pub fn is_ok(&self) -> HardBool {
+        self.as_ref()
+            .map_or_else(|_| HardBool::new_err(()), |_| HardBool::new(()))
+    }
+
+    pub fn is_err(&self) -> HardBool {
+        self.as_ref()
+            .map_or_else(|_| HardBool::new(()), |_| HardBool::new_err(()))
     }
 }

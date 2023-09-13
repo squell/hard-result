@@ -16,7 +16,7 @@ const S_FST: InternalRepresentation = 0xAAAAAAAAAAAAAAAA;
 const S_SND: InternalRepresentation = 0x5555555555555555;
 
 impl<T, E> HardResult<T, E> {
-    pub fn new(value: T) -> Self {
+    pub const fn new(value: T) -> Self {
         Self {
             tag: S_FST,
             data: MaybeUninit::new(Union {
@@ -25,7 +25,7 @@ impl<T, E> HardResult<T, E> {
         }
     }
 
-    pub fn new_err(value: E) -> Self {
+    pub const fn new_err(value: E) -> Self {
         Self {
             tag: S_SND,
             data: MaybeUninit::new(Union {
@@ -42,7 +42,7 @@ impl<T, E> HardResult<T, E> {
     }
 
     //NOTE: T and E are not dynamically sized, so a &T and &E have the same representation
-    pub fn as_ref(&self) -> HardResult<&T, &E> {
+    pub const fn as_ref(&self) -> HardResult<&T, &E> {
         let ptr = self.data.as_ptr() as *const T;
         HardResult {
             tag: self.tag,
@@ -117,5 +117,57 @@ impl<T, E> Drop for HardResult<T, E> {
             data: replace(&mut self.data, MaybeUninit::uninit()),
         }
         .map_or_else(|_| {}, |_| {})
+    }
+}
+
+/// Boolean primitives that are just handy to have
+const EMPTY_DATA: MaybeUninit<Union<(), ()>> = MaybeUninit::new(Union {
+    fst: ManuallyDrop::new(()),
+});
+
+impl std::ops::BitOr for HardResult<(), ()> {
+    type Output = Self;
+
+    fn bitor(self, other: Self) -> Self {
+        let mask = !self.tag ^ other.tag;
+        Self {
+            tag: self.tag & mask | S_FST & !mask,
+            data: EMPTY_DATA,
+        }
+    }
+}
+
+impl std::ops::BitAnd for HardResult<(), ()> {
+    type Output = Self;
+
+    fn bitand(self, other: Self) -> Self {
+        let mask = !self.tag ^ other.tag;
+        Self {
+            tag: self.tag & mask | S_SND & !mask,
+            data: EMPTY_DATA,
+        }
+    }
+}
+
+impl std::ops::BitXor for HardResult<(), ()> {
+    type Output = Self;
+
+    fn bitxor(self, other: Self) -> Self {
+        let mask = !self.tag ^ other.tag;
+        Self {
+            tag: mask & S_SND | !mask & S_FST,
+            data: EMPTY_DATA,
+        }
+    }
+}
+
+impl std::ops::Not for HardResult<(), ()> {
+    type Output = Self;
+
+    fn not(self) -> Self {
+        Self {
+            tag: !self.tag,
+            data: EMPTY_DATA,
+        }
     }
 }
