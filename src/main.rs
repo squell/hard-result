@@ -50,4 +50,16 @@ fn main() {
     println!("{}", pass(41).unwrap());
 
     println!("{:?}", TRUE);
+
+    #[cfg(feature = "loops")]
+    {
+	let mut x = 1000000000;
+	let mut y = x;
+	harder! {
+	    while ({x-=1; x>=0}.into()) {
+		println!("{y} bottles of beer!");
+		y -= 1;
+	    }
+	}
+    }
 }

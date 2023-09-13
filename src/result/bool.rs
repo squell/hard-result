@@ -17,14 +17,16 @@ impl HardBool {
         self.map(|()| value)
     }
 
-    pub fn r#if_else(self, then_do: impl FnOnce(), else_do: impl FnOnce()) {
+    pub fn if_else(self, then_do: impl FnOnce(), else_do: impl FnOnce()) {
         self.map_or_else(|()| else_do(), |()| then_do())
     }
 
+    #[cfg(feature = "loops")]
     fn repeat(mut test: impl FnMut() -> Self) {
         test().if_else(|| Self::repeat(test), || ())
     }
 
+    #[cfg(feature = "loops")]
     pub fn r#while(mut test: impl FnMut() -> Self, mut body: impl FnMut()) {
         test().if_else(
             || {
@@ -35,5 +37,15 @@ impl HardBool {
             },
             || (),
         );
+    }
+}
+
+impl<B: std::convert::Into<bool>> From<B> for HardBool {
+    fn from(value: B) -> Self {
+        if value.into() {
+            HardBool::r#true()
+        } else {
+            HardBool::r#false()
+        }
     }
 }

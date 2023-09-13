@@ -1,4 +1,5 @@
 mod bool;
+mod macros;
 mod option;
 mod traits;
 
