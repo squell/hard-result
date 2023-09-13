@@ -1,4 +1,4 @@
-use std::mem::{transmute, ManuallyDrop};
+use std::mem::{forget, replace, transmute, ManuallyDrop, MaybeUninit};
 
 type InternalRepresentation = usize;
 
@@ -9,7 +9,7 @@ union Union<A, B> {
 
 struct HardResult<A, B> {
     tag: InternalRepresentation,
-    data: Option<Union<A, B>>,
+    data: MaybeUninit<Union<A, B>>,
 }
 
 struct HardOption<A>(HardResult<A, ()>);
@@ -23,7 +23,7 @@ impl<T, E> HardResult<T, E> {
     pub fn new(value: T) -> Self {
         Self {
             tag: S_FST,
-            data: Some(Union {
+            data: MaybeUninit::new(Union {
                 fst: ManuallyDrop::new(value),
             }),
         }
@@ -32,10 +32,14 @@ impl<T, E> HardResult<T, E> {
     pub fn new_err(value: E) -> Self {
         Self {
             tag: S_SND,
-            data: Some(Union {
+            data: MaybeUninit::new(Union {
                 snd: ManuallyDrop::new(value),
             }),
         }
+    }
+
+    unsafe fn inner(&mut self) -> Union<T, E> {
+        replace(&mut self.data, MaybeUninit::uninit()).assume_init()
     }
 
     fn if_then_else<U, D: FnOnce(E) -> U, F: FnOnce(T) -> U>(&mut self, g: D, f: F) -> U {
@@ -44,7 +48,7 @@ impl<T, E> HardResult<T, E> {
             _g: impl FnOnce(E) -> U,
             f: impl FnOnce(T) -> U,
         ) -> U {
-            f(ManuallyDrop::into_inner(this.data.take().unwrap().fst))
+            f(ManuallyDrop::into_inner(this.inner().fst))
         }
 
         unsafe fn else_do<T, E, U>(
@@ -52,7 +56,7 @@ impl<T, E> HardResult<T, E> {
             g: impl FnOnce(E) -> U,
             _f: impl FnOnce(T) -> U,
         ) -> U {
-            g(ManuallyDrop::into_inner(this.data.take().unwrap().snd))
+            g(ManuallyDrop::into_inner(this.inner().snd))
         }
 
         type BodyFunction<T, E, U, D, F> = unsafe fn(&'_ mut HardResult<T, E>, D, F) -> U;
@@ -74,7 +78,10 @@ impl<T, E> HardResult<T, E> {
     }
 
     pub fn map_or_else<U, D: FnOnce(E) -> U, F: FnOnce(T) -> U>(mut self, g: D, f: F) -> U {
-        self.if_then_else(g, f)
+        let result = self.if_then_else(g, f);
+        forget(self);
+
+        result
     }
 
     pub fn unwrap(self) -> T {
@@ -86,19 +93,25 @@ impl<T, E> HardResult<T, E> {
     }
 
     pub unsafe fn unwrap_unchecked(mut self) -> T {
-        ManuallyDrop::into_inner(self.data.take().unwrap_unchecked().fst)
+        ManuallyDrop::into_inner(self.inner().fst)
     }
 
     pub unsafe fn unwrap_err_unchecked(mut self) -> E {
-        ManuallyDrop::into_inner(self.data.take().unwrap_unchecked().snd)
+        ManuallyDrop::into_inner(self.inner().snd)
     }
 }
 
 impl<T, E> Drop for HardResult<T, E> {
     fn drop(&mut self) {
-        if self.data.is_some() {
-            self.if_then_else(|_x| {}, |_x| {})
-        }
+        self.if_then_else(|_x| {}, |_x| {})
+    }
+}
+
+struct Dummy;
+
+impl Drop for Dummy {
+    fn drop(&mut self) {
+        println!("Mmm mmm");
     }
 }
 
@@ -113,4 +126,7 @@ fn main() {
             println!("OK value {x}");
         },
     );
+
+    let bar = HardResult::<Dummy, ()>::new(Dummy);
+    bar.unwrap();
 }
