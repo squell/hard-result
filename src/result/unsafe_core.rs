@@ -1,4 +1,4 @@
-use std::mem::{forget, replace, ManuallyDrop, MaybeUninit};
+use std::mem::{replace, ManuallyDrop, MaybeUninit};
 
 union Union<A, B> {
     fst: ManuallyDrop<A>,
@@ -32,11 +32,8 @@ impl<T, E> HardResult<T, E> {
         }
     }
 
-    unsafe fn inner(mut self) -> Union<T, E> {
-        let result = replace(&mut self.data, MaybeUninit::uninit()).assume_init();
-        forget(self);
-
-        result
+    unsafe fn inner(self) -> Union<T, E> {
+        replace(&mut ManuallyDrop::new(self).data, MaybeUninit::uninit()).assume_init()
     }
 
     //NOTE: T and E are not dynamically sized, so a &T and &E have the same representation
