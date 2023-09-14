@@ -1,19 +1,17 @@
 use std::mem::{forget, replace, transmute, ManuallyDrop, MaybeUninit};
 
-type InternalRepresentation = usize;
-
 union Union<A, B> {
     fst: ManuallyDrop<A>,
     snd: ManuallyDrop<B>,
 }
 
 pub struct HardResult<A, B> {
-    tag: InternalRepresentation,
+    tag: usize,
     data: MaybeUninit<Union<A, B>>,
 }
 
-const S_FST: InternalRepresentation = 0xAAAAAAAAAAAAAAAA;
-const S_SND: InternalRepresentation = 0x5555555555555555;
+const S_FST: usize = 0xAAAAAAAAAAAAAAAA;
+const S_SND: usize = 0x5555555555555555;
 
 impl<T, E> HardResult<T, E> {
     pub const fn new(value: T) -> Self {
@@ -63,38 +61,30 @@ impl<T, E> HardResult<T, E> {
     }
 
     pub fn map_or_else<U, D: FnOnce(E) -> U, F: FnOnce(T) -> U>(self, g: D, f: F) -> U {
-        unsafe fn then_do<T, E, U>(
+        unsafe fn then_do<T, E, U, D: FnOnce(E) -> U, F: FnOnce(T) -> U>(
             this: HardResult<T, E>,
-            _g: impl FnOnce(E) -> U,
-            f: impl FnOnce(T) -> U,
+            _g: D,
+            f: F,
         ) -> U {
             f(ManuallyDrop::into_inner(this.inner().fst))
         }
 
-        unsafe fn else_do<T, E, U>(
+        unsafe fn else_do<T, E, U, D: FnOnce(E) -> U, F: FnOnce(T) -> U>(
             this: HardResult<T, E>,
-            g: impl FnOnce(E) -> U,
-            _f: impl FnOnce(T) -> U,
+            g: D,
+            _f: F,
         ) -> U {
             g(ManuallyDrop::into_inner(this.inner().snd))
         }
 
-        type BodyFunction<T, E, U, D, F> = unsafe fn(HardResult<T, E>, D, F) -> U;
-
         let mask_0 = self.tag ^ S_FST;
         let mask_1 = self.tag ^ S_SND;
 
-        #[allow(clippy::transmutes_expressible_as_ptr_casts)]
-        unsafe {
-            let address_0 =
-                transmute::<BodyFunction<T, E, U, D, F>, InternalRepresentation>(then_do) & mask_1;
-            let address_1 =
-                transmute::<BodyFunction<T, E, U, D, F>, InternalRepresentation>(else_do) & mask_0;
+        let address_0 = then_do::<T, E, U, D, F> as usize & mask_1;
+        let address_1 = else_do::<T, E, U, D, F> as usize & mask_0;
+        let address = address_0 ^ address_1;
 
-            transmute::<InternalRepresentation, BodyFunction<T, E, U, D, F>>(address_0 ^ address_1)(
-                self, g, f,
-            )
-        }
+        unsafe { transmute::<usize, unsafe fn(HardResult<T, E>, D, F) -> U>(address)(self, g, f) }
     }
 
     /// # Safety
