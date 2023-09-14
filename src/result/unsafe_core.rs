@@ -1,4 +1,4 @@
-use std::mem::{forget, replace, transmute, ManuallyDrop, MaybeUninit};
+use std::mem::{forget, replace, ManuallyDrop, MaybeUninit};
 
 union Union<A, B> {
     fst: ManuallyDrop<A>,
@@ -61,30 +61,45 @@ impl<T, E> HardResult<T, E> {
     }
 
     pub fn map_or_else<U, D: FnOnce(E) -> U, F: FnOnce(T) -> U>(self, g: D, f: F) -> U {
-        unsafe fn then_do<T, E, U, D: FnOnce(E) -> U, F: FnOnce(T) -> U>(
-            this: HardResult<T, E>,
-            _g: D,
-            f: F,
-        ) -> U {
-            f(ManuallyDrop::into_inner(this.inner().fst))
+        struct SafeFn<T, E, U, D, F> {
+            redundancy: *const Self,
+            function: unsafe fn(HardResult<T, E>, D, F) -> U,
         }
 
-        unsafe fn else_do<T, E, U, D: FnOnce(E) -> U, F: FnOnce(T) -> U>(
-            this: HardResult<T, E>,
-            g: D,
-            _f: F,
-        ) -> U {
-            g(ManuallyDrop::into_inner(this.inner().snd))
+        impl<T, E, U, D, F> SafeFn<T, E, U, D, F> {
+            fn seal(&mut self) -> &Self {
+                self.redundancy = self;
+                self
+            }
         }
+
+        let mut then_do = SafeFn {
+            redundancy: std::ptr::null(),
+            function: |this: HardResult<T, E>, _: D, f: F| unsafe {
+                f(ManuallyDrop::into_inner(this.inner().fst))
+            },
+        };
+        let mut else_do = SafeFn {
+            redundancy: std::ptr::null(),
+            function: |this: HardResult<T, E>, g: D, _: F| unsafe {
+                g(ManuallyDrop::into_inner(this.inner().snd))
+            },
+        };
 
         let mask_0 = self.tag ^ S_FST;
         let mask_1 = self.tag ^ S_SND;
 
-        let address_0 = then_do::<T, E, U, D, F> as usize & mask_1;
-        let address_1 = else_do::<T, E, U, D, F> as usize & mask_0;
+        let address_0 = then_do.seal() as *const _ as usize & mask_1;
+        let address_1 = else_do.seal() as *const _ as usize & mask_0;
         let address = address_0 ^ address_1;
 
-        unsafe { transmute::<usize, unsafe fn(HardResult<T, E>, D, F) -> U>(address)(self, g, f) }
+        unsafe {
+            let ptr = address as *const SafeFn<T, E, U, D, F>;
+            if (*ptr).redundancy != ptr {
+                std::process::abort()
+            }
+            ((*ptr).function)(self, g, f)
+        }
     }
 
     /// # Safety
