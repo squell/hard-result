@@ -62,25 +62,25 @@ impl<T, E> HardResult<T, E> {
 
     pub fn map_or_else<U, D: FnOnce(E) -> U, F: FnOnce(T) -> U>(self, g: D, f: F) -> U {
         struct SafeFn<T, E, U, D, F> {
-            redundancy: *const Self,
+            checksum: usize,
             function: unsafe fn(HardResult<T, E>, D, F) -> U,
         }
 
         impl<T, E, U, D, F> SafeFn<T, E, U, D, F> {
             fn seal(&mut self) -> &Self {
-                self.redundancy = self;
+                self.checksum = (self as *const Self as usize) ^ (self.function as usize);
                 self
             }
         }
 
         let mut then_do = SafeFn {
-            redundancy: std::ptr::null(),
+            checksum: 0,
             function: |this: HardResult<T, E>, _: D, f: F| unsafe {
                 f(ManuallyDrop::into_inner(this.inner().fst))
             },
         };
         let mut else_do = SafeFn {
-            redundancy: std::ptr::null(),
+            checksum: 0,
             function: |this: HardResult<T, E>, g: D, _: F| unsafe {
                 g(ManuallyDrop::into_inner(this.inner().snd))
             },
@@ -95,7 +95,7 @@ impl<T, E> HardResult<T, E> {
 
         unsafe {
             let ptr = address as *const SafeFn<T, E, U, D, F>;
-            if (*ptr).redundancy != ptr {
+            if (*ptr).checksum ^ ptr as usize != (*ptr).function as usize {
                 std::process::abort()
             }
             ((*ptr).function)(self, g, f)
