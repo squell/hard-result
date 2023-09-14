@@ -75,14 +75,12 @@ impl<T, E> HardResult<T, E> {
 
         let mut then_do = SafeFn {
             checksum: 0,
-            function: |this: HardResult<T, E>, _: D, f: F| unsafe {
-                f(ManuallyDrop::into_inner(this.inner().fst))
-            },
+            function: |this: HardResult<T, E>, _: D, f: F| unsafe { f(this.unwrap_unchecked()) },
         };
         let mut else_do = SafeFn {
             checksum: 0,
             function: |this: HardResult<T, E>, g: D, _: F| unsafe {
-                g(ManuallyDrop::into_inner(this.inner().snd))
+                g(this.unwrap_err_unchecked())
             },
         };
 
@@ -126,19 +124,12 @@ impl<T, E> Drop for HardResult<T, E> {
 }
 
 /// Boolean primitives that are just handy to have
-const EMPTY_DATA: MaybeUninit<Union<(), ()>> = MaybeUninit::new(Union {
-    fst: ManuallyDrop::new(()),
-});
-
 impl std::ops::BitOr for HardResult<(), ()> {
     type Output = Self;
 
     fn bitor(self, other: Self) -> Self {
         let mask = !self.tag ^ other.tag;
-        Self {
-            tag: self.tag & mask | S_FST & !mask,
-            data: EMPTY_DATA,
-        }
+        unsafe { Self::from_tag(self.tag & mask | S_FST & !mask) }
     }
 }
 
@@ -147,10 +138,7 @@ impl std::ops::BitAnd for HardResult<(), ()> {
 
     fn bitand(self, other: Self) -> Self {
         let mask = !self.tag ^ other.tag;
-        Self {
-            tag: self.tag & mask | S_SND & !mask,
-            data: EMPTY_DATA,
-        }
+        unsafe { Self::from_tag(self.tag & mask | S_SND & !mask) }
     }
 }
 
@@ -159,10 +147,7 @@ impl std::ops::BitXor for HardResult<(), ()> {
 
     fn bitxor(self, other: Self) -> Self {
         let mask = !self.tag ^ other.tag;
-        Self {
-            tag: mask & S_SND | !mask & S_FST,
-            data: EMPTY_DATA,
-        }
+        unsafe { Self::from_tag(mask & S_SND | !mask & S_FST) }
     }
 }
 
@@ -170,8 +155,20 @@ impl std::ops::Not for HardResult<(), ()> {
     type Output = Self;
 
     fn not(self) -> Self {
-        Self {
-            tag: !self.tag,
+        unsafe { Self::from_tag(!self.tag) }
+    }
+}
+
+impl HardResult<(), ()> {
+    /// # Safety
+    /// tag must be a valid tag value
+    unsafe fn from_tag(tag: usize) -> Self {
+        const EMPTY_DATA: MaybeUninit<Union<(), ()>> = MaybeUninit::new(Union {
+            fst: ManuallyDrop::new(()),
+        });
+
+        HardResult {
+            tag,
             data: EMPTY_DATA,
         }
     }
@@ -179,9 +176,6 @@ impl std::ops::Not for HardResult<(), ()> {
 
 impl<T, E> HardResult<T, E> {
     pub fn truncate(&self) -> HardResult<(), ()> {
-        HardResult {
-            tag: self.tag,
-            data: EMPTY_DATA,
-        }
+        unsafe { HardResult::from_tag(self.tag) }
     }
 }
