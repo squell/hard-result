@@ -42,6 +42,13 @@ impl HardBool {
             *cond = test();
         });
     }
+
+    pub fn r#do_while(mut body: impl FnMut() -> Self) {
+        let mut status = HardBool::r#true();
+        Self::repeat(&mut status, &mut |cond: &mut HardBool| {
+            *cond = body();
+        });
+    }
 }
 
 pub struct Else<U>(HardOption<U>);
