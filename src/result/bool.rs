@@ -32,11 +32,7 @@ impl HardBool {
 
         f(status);
 
-        trampoline(
-            status,
-            || (|_, _| {}) as fn(&mut Self, &mut dyn FnMut(&mut Self)),
-            || Self::repeat,
-        )(status, f);
+        trampoline::<fn(_, _)>(status, || |_, _| (), || Self::repeat)(status, f);
     }
 
     pub fn r#while(mut test: impl FnMut() -> Self, mut body: impl FnMut()) {
