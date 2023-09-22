@@ -25,22 +25,26 @@ impl HardBool {
         Else(self.map(|()| then_do()))
     }
 
-    #[cfg(feature = "loops")]
-    fn repeat(mut test: impl FnMut() -> Self) {
-        test().if_else(|| Self::repeat(test), || ())
+    fn repeat(status: &mut Self, f: &mut dyn FnMut(&mut Self)) {
+        fn trampoline<U>(status: &HardBool, g: fn() -> U, f: fn() -> U) -> U {
+            status.clone().map_or_else(|()| g(), |()| f())
+        }
+
+        f(status);
+
+        trampoline(
+            status,
+            || (|_, _| {}) as fn(&mut Self, &mut dyn FnMut(&mut Self)),
+            || Self::repeat,
+        )(status, f);
     }
 
-    #[cfg(feature = "loops")]
     pub fn r#while(mut test: impl FnMut() -> Self, mut body: impl FnMut()) {
-        test().if_else(
-            || {
-                Self::repeat(|| {
-                    body();
-                    test()
-                })
-            },
-            || (),
-        );
+        let mut status = test();
+        Self::repeat(&mut status, &mut |cond: &mut HardBool| {
+            body();
+            *cond = test();
+        });
     }
 }
 

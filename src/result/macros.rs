@@ -9,6 +9,6 @@ macro_rules! harder {
     };
 
     (while $cond: tt $body: block) => {
-        HardBool::r#while(move || $cond, move || $body);
+        HardBool::r#while(|| $cond, || $body);
     };
 }

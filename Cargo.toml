@@ -9,5 +9,3 @@ edition = "2021"
 default = []
 try = []
 loops = []
-
-[dependencies]
