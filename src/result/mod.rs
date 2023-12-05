@@ -33,6 +33,7 @@ impl<T, E> HardResult<T, E> {
 }
 
 impl<T: Default, E> HardResult<T, E> {
+    #[allow(clippy::unwrap_or_default)]
     pub fn unwrap_or_default(self) -> T {
         self.unwrap_or(T::default())
     }
