@@ -8,3 +8,9 @@ edition = "2021"
 [features]
 default = []
 try = []
+
+[profile.dev]
+opt-level = 1
+
+[profile.release]
+codegen-units = 2
