@@ -52,12 +52,11 @@ fn main() {
 
     println!("{:?}", TRUE);
 
-    use std::cell::Cell;
-    let x = Cell::new(1000000);
+    let mut x: i32 = 1000000;
     harder! {
-	while ({x.get() > 0}.into()) {
-	    println!("{} bottles of beer!", x.get());
-	    x.replace(x.get() - 1);
-	}
+        while (x > 0) {
+            println!("{} bottles of beer!", x);
+            x -= 1;
+        }
     }
 }

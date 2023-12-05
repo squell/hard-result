@@ -9,6 +9,15 @@ macro_rules! harder {
     };
 
     (while $cond: tt $body: block) => {
-        HardBool::r#while(|| $cond, || $body);
+        HardBool::r#if(($cond).into(), || {
+            HardBool::r#do_while(|| {
+                {
+                    $body
+                }
+                {
+                    ($cond).into()
+                }
+            })
+        });
     };
 }
