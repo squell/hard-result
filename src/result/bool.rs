@@ -26,13 +26,13 @@ impl HardBool {
     }
 
     fn repeat(status: &mut Self, f: &mut dyn FnMut(&mut Self)) {
-        fn trampoline<U>(status: &HardBool, g: fn() -> U, f: fn() -> U) -> U {
-            status.clone().map_or_else(|()| g(), |()| f())
+        fn trampoline<U>(status: &HardBool, g: fn(()) -> U, f: fn(()) -> U) -> U {
+            status.clone().map_or_else(g, f)
         }
 
         f(status);
 
-        trampoline::<fn(_, _)>(status, || |_, _| (), || Self::repeat)(status, f);
+        trampoline::<fn(_, _)>(status, |()| |_, _| (), |()| Self::repeat)(status, f);
     }
 
     pub fn r#while(mut test: impl FnMut() -> Self, mut body: impl FnMut()) {
