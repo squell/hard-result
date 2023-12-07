@@ -26,6 +26,7 @@ impl HardBool {
     }
 
     fn repeat(status: &mut Self, f: &mut dyn FnMut(&mut Self)) {
+        #[inline(never)]
         fn trampoline<U>(status: &HardBool, g: fn(()) -> U, f: fn(()) -> U) -> U {
             status.clone().map_or_else(g, f)
         }

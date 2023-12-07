@@ -57,7 +57,6 @@ impl<T, E> HardResult<T, E> {
         }
     }
 
-    #[inline(never)]
     pub fn map_or_else<U, D: FnOnce(E) -> U, F: FnOnce(T) -> U>(self, g: D, f: F) -> U {
         struct SafeFn<T, E, U, D, F> {
             checksum: usize,
