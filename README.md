@@ -8,6 +8,10 @@ alter the program flow by changing e.g. a `JNZ` instructions into `JZ`.
 
 WORK IN PROGRESS
 
+Demo
+----
+Run `cargo run --example demo` for a 99 bottles of beer using `HardBool`.
+
 Feature flags
 -------------
 The `try` feature flag will enable `?` for use with `HardResult`. This

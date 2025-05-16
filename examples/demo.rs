@@ -1,7 +1,6 @@
 #![cfg_attr(feature = "try", feature(try_trait_v2))]
 
-mod result;
-pub use result::{HardBool, HardOption, HardResult, FALSE, TRUE};
+pub use hard_result::{harder, HardBool, HardOption, HardResult, FALSE, TRUE};
 
 struct Dummy;
 
