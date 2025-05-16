@@ -10,4 +10,4 @@ default = []
 try = []
 
 [profile.dev]
-opt-level = 1
+opt-level = 1     # opt-level = 0 will not work with the looping construct

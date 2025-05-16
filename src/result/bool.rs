@@ -36,6 +36,7 @@ impl HardBool {
         trampoline::<fn(_, _)>(status, |()| |_, _| (), |()| Self::repeat)(status, f);
     }
 
+    //NOTE: This relies on tail-call optimization, which is not guaranteed!
     pub fn r#while(mut test: impl FnMut() -> Self, mut body: impl FnMut()) {
         let mut status = test();
         Self::repeat(&mut status, &mut |cond: &mut HardBool| {

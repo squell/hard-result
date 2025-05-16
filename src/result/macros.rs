@@ -9,6 +9,7 @@ macro_rules! harder {
     };
 
     (while $cond: tt $body: block) => {
+        // this `.into()` is a known weak spot
         HardBool::r#if(($cond).into(), || {
             HardBool::r#do_while(|| {
                 {
